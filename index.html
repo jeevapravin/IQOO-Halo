@@ -412,7 +412,7 @@
 
     // ⚠️  Paste your Gemini API key here for local demo use only.
     //     Do NOT commit this file to a public repository with a real key.
-    const GEMINI_API_KEY = "PASTE_KEY_HERE";
+    const GEMINI_API_KEY = "AQ.Ab8RN6KcTk35NqUvLuwhGz8C117-kGlURnHINWGgu_n392RJJA";
 
     const GEMINI_PRIMARY   = "gemini-2.5-flash-lite-preview-06-17";
     const GEMINI_FALLBACK  = "gemini-2.0-flash";
@@ -538,7 +538,10 @@ Return ONLY valid JSON with exactly two keys: "priority" (string, either "high" 
 
       // BUILDING: 3+ low-priority accumulated
       if (lows.length >= BUILDING_THRESH) {
-        // Focus mode: still shows building but never escalates further (already handled above)
+        // Focus mode: suppresses building, returning to calm
+        if (state.focusMode) {
+          return "calm";
+        }
         // High noise: bias toward suppressing building
         if (state.noiseLevel === "high") {
           return lows.length >= 5 ? "building" : "calm";
