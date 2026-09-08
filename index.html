@@ -1,0 +1,1090 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Halo Simulator — iQOO Ambient Notification System</title>
+  <meta name="description" content="Interactive prototype demonstrating the Halo ambient notification ring — an AI-powered context-aware notification system for iQOO devices.">
+
+  <!-- Google Fonts: Inter (body) + Space Grotesk (display) -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+  <!-- Tailwind CSS v4 (Play CDN) -->
+  <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+
+  <!-- GSAP 3.15 for premium animations -->
+  <script src="https://cdn.jsdelivr.net/npm/gsap@3.15.0/dist/gsap.min.js"></script>
+
+  <!-- ======================== TAILWIND THEME ======================== -->
+  <style type="text/tailwindcss">
+    @theme {
+      --color-base: #0a0a0f;
+      --color-panel: #111118;
+      --color-elevated: #1a1a26;
+      --color-divide: rgba(255, 255, 255, 0.06);
+      --color-label: #e8e8ed;
+      --color-sublabel: #8888a0;
+      --color-muted: #50506a;
+      --color-calm: #4a9eff;
+      --color-calm-dim: rgba(74, 158, 255, 0.12);
+      --color-warn: #ffb340;
+      --color-warn-dim: rgba(255, 179, 64, 0.12);
+      --color-danger: #ff4757;
+      --color-danger-dim: rgba(255, 71, 87, 0.12);
+      --font-display: 'Space Grotesk', sans-serif;
+      --font-sans: 'Inter', system-ui, -apple-system, sans-serif;
+    }
+  </style>
+
+  <!-- ======================== CUSTOM CSS ======================== -->
+  <style>
+    /* --- Page load --- */
+    body { opacity: 0; transition: opacity 0.5s ease; }
+    body.loaded { opacity: 1; }
+
+    /* --- Glassmorphism panel --- */
+    .glass {
+      background: rgba(17, 17, 24, 0.6);
+      backdrop-filter: blur(24px);
+      -webkit-backdrop-filter: blur(24px);
+      border: 1px solid rgba(255, 255, 255, 0.06);
+    }
+
+    /* --- Custom toggle switch --- */
+    .toggle-switch {
+      width: 44px; height: 24px;
+      border-radius: 12px;
+      background: #22223a;
+      border: 1px solid rgba(255,255,255,0.06);
+      position: relative;
+      cursor: pointer;
+      transition: background 0.35s cubic-bezier(0.4,0,0.2,1), border-color 0.35s;
+      flex-shrink: 0;
+      padding: 0; outline: none;
+    }
+    .toggle-switch[aria-checked="true"] {
+      background: var(--color-calm);
+      border-color: var(--color-calm);
+    }
+    .toggle-thumb {
+      width: 18px; height: 18px;
+      border-radius: 50%;
+      background: #fff;
+      position: absolute; top: 2px; left: 2px;
+      transition: transform 0.35s cubic-bezier(0.4,0,0.2,1);
+      box-shadow: 0 1px 3px rgba(0,0,0,0.3);
+    }
+    .toggle-switch[aria-checked="true"] .toggle-thumb {
+      transform: translateX(20px);
+    }
+
+    /* --- Custom range slider --- */
+    input[type="range"] {
+      -webkit-appearance: none; appearance: none;
+      width: 100%; height: 5px;
+      background: #22223a; border-radius: 3px;
+      outline: none; cursor: pointer;
+    }
+    input[type="range"]::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      width: 18px; height: 18px;
+      background: var(--color-calm); border-radius: 50%;
+      cursor: pointer;
+      box-shadow: 0 0 10px rgba(74,158,255,0.35);
+      transition: box-shadow 0.2s;
+    }
+    input[type="range"]::-webkit-slider-thumb:hover {
+      box-shadow: 0 0 16px rgba(74,158,255,0.55);
+    }
+    input[type="range"]::-moz-range-thumb {
+      width: 18px; height: 18px;
+      background: var(--color-calm); border-radius: 50%;
+      cursor: pointer; border: none;
+      box-shadow: 0 0 10px rgba(74,158,255,0.35);
+    }
+
+    /* --- Custom scrollbar for log --- */
+    #logEntries::-webkit-scrollbar { width: 4px; }
+    #logEntries::-webkit-scrollbar-track { background: transparent; }
+    #logEntries::-webkit-scrollbar-thumb {
+      background: rgba(255,255,255,0.08); border-radius: 2px;
+    }
+    #logEntries::-webkit-scrollbar-thumb:hover {
+      background: rgba(255,255,255,0.15);
+    }
+
+    /* --- Button base --- */
+    .btn {
+      border: none; cursor: pointer; outline: none;
+      font-family: var(--font-sans); font-weight: 500;
+      border-radius: 10px; padding: 9px 16px;
+      transition: transform 0.1s, box-shadow 0.25s, background 0.25s;
+      font-size: 13px; letter-spacing: 0.01em;
+    }
+    .btn:active { transform: scale(0.965); }
+
+    .btn-low {
+      background: var(--color-calm-dim);
+      color: var(--color-calm);
+      border: 1px solid rgba(74,158,255,0.18);
+    }
+    .btn-low:hover {
+      background: rgba(74,158,255,0.18);
+      box-shadow: 0 0 20px rgba(74,158,255,0.1);
+    }
+    .btn-high {
+      background: var(--color-danger-dim);
+      color: var(--color-danger);
+      border: 1px solid rgba(255,71,87,0.18);
+    }
+    .btn-high:hover {
+      background: rgba(255,71,87,0.18);
+      box-shadow: 0 0 20px rgba(255,71,87,0.1);
+    }
+    .btn-send {
+      background: linear-gradient(135deg, var(--color-calm), #3570e0);
+      color: #fff; border: none;
+      padding: 9px 18px;
+    }
+    .btn-send:hover {
+      box-shadow: 0 0 22px rgba(74,158,255,0.3);
+    }
+    .btn-send:disabled {
+      opacity: 0.5; cursor: not-allowed;
+      transform: none;
+    }
+
+    /* --- Phone silhouette --- */
+    #phone {
+      background: linear-gradient(155deg, #141422, #0c0c18);
+      border: 1px solid rgba(255,255,255,0.04);
+      box-shadow:
+        inset 0 1px 0 rgba(255,255,255,0.03),
+        0 10px 40px rgba(0,0,0,0.45),
+        0 2px 10px rgba(0,0,0,0.3);
+    }
+
+    /* --- Halo ring --- */
+    #haloRing {
+      border: 3.5px solid var(--color-calm);
+      box-shadow:
+        0 0 8px 2px rgba(74,158,255, 1),
+        0 0 20px 6px rgba(74,158,255, 0.8),
+        0 0 45px 12px rgba(74,158,255, 0.45),
+        0 0 80px 24px rgba(74,158,255, 0.2),
+        0 0 130px 45px rgba(74,158,255, 0.08);
+      transition: border-color 0s;
+    }
+
+    /* --- Focus ring for accessibility --- */
+    *:focus-visible {
+      outline: 2px solid var(--color-calm);
+      outline-offset: 2px;
+    }
+
+    /* --- Notification badge pulse --- */
+    @keyframes badgePulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.6; }
+    }
+
+    /* --- Status dot --- */
+    .status-dot {
+      animation: badgePulse 2s ease-in-out infinite;
+    }
+
+    /* --- Message input --- */
+    #messageInput {
+      background: rgba(255,255,255,0.04);
+      border: 1px solid rgba(255,255,255,0.08);
+      border-radius: 10px;
+      color: var(--color-label);
+      font-family: var(--font-sans);
+      font-size: 13px;
+      padding: 9px 14px;
+      outline: none;
+      transition: border-color 0.25s, box-shadow 0.25s;
+      flex: 1;
+    }
+    #messageInput::placeholder { color: var(--color-muted); }
+    #messageInput:focus {
+      border-color: rgba(74,158,255,0.35);
+      box-shadow: 0 0 12px rgba(74,158,255,0.08);
+    }
+
+    /* --- Log entry dot --- */
+    .log-dot {
+      width: 6px; height: 6px; border-radius: 50%;
+      flex-shrink: 0; margin-top: 5px;
+    }
+  </style>
+</head>
+
+<body class="bg-base text-label font-sans overflow-hidden min-h-screen">
+
+  <!-- ============ AMBIENT BACKGROUND GLOW ============ -->
+  <div id="bgGlow" class="fixed pointer-events-none rounded-full"
+       style="width:700px;height:700px;left:28%;top:50%;transform:translate(-50%,-50%);
+              filter:blur(140px);opacity:0.045;background:#4a9eff;
+              transition:background 1s ease">
+  </div>
+
+  <!-- ============ MAIN LAYOUT ============ -->
+  <div id="app" class="flex flex-col h-screen px-6 pt-4 pb-2 max-w-[1280px] mx-auto">
+
+    <!-- ---- Top: Main content area ---- -->
+    <main class="flex-1 flex items-center gap-8 min-h-0">
+
+      <!-- ======== LEFT COLUMN: Phone + Reasoning ======== -->
+      <div class="flex flex-col items-center gap-3 flex-shrink-0" style="width:380px">
+
+        <!-- Phone silhouette -->
+        <div id="phone" class="relative flex items-center justify-center"
+             style="width:260px;height:460px;border-radius:38px">
+
+          <!-- Camera module -->
+          <div class="absolute top-5 left-1/2 -translate-x-1/2 flex items-center gap-1.5">
+            <div class="w-3.5 h-3.5 rounded-full border border-white/10" style="background:#0a0a14"></div>
+            <div class="w-2.5 h-2.5 rounded-full border border-white/10" style="background:#0a0a14"></div>
+          </div>
+
+          <!-- Notification count badge -->
+          <div id="notifBadge" class="absolute top-5 right-5 min-w-[20px] h-5 rounded-full flex items-center justify-center text-[10px] font-semibold px-1 opacity-0 transition-opacity duration-300"
+               style="background:rgba(74,158,255,0.2);color:var(--color-calm)">
+            0
+          </div>
+
+          <!-- Ambient glow on phone surface -->
+          <div id="surfaceGlow" class="absolute rounded-full pointer-events-none"
+               style="width:280px;height:280px;background:radial-gradient(circle,rgba(74,158,255,0.06) 0%,transparent 65%);
+                      transition:background 0.8s ease">
+          </div>
+
+          <!-- The Halo Ring -->
+          <div id="haloRing" class="rounded-full z-10"
+               style="width:140px;height:140px;background:transparent">
+          </div>
+
+          <!-- Inner accent ring -->
+          <div id="innerRing" class="absolute rounded-full pointer-events-none z-10"
+               style="width:124px;height:124px;border:1px solid rgba(74,158,255,0.12)">
+          </div>
+
+          <!-- State label -->
+          <div id="ringStateLabel" class="absolute z-10 text-[11px] font-medium tracking-widest uppercase opacity-60"
+               style="color:var(--color-calm);bottom:calc(50% - 95px)">
+            CALM
+          </div>
+
+          <!-- iQOO branding -->
+          <span class="absolute bottom-5 left-1/2 -translate-x-1/2 text-white/[0.04] text-[11px] font-semibold tracking-[0.25em] select-none">iQOO</span>
+        </div>
+
+        <!-- Reasoning panel -->
+        <div id="reasoningPanel" class="glass rounded-2xl px-5 py-3.5 w-full">
+          <div class="flex items-center gap-2 mb-1.5">
+            <svg class="w-3.5 h-3.5 text-sublabel flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"/>
+            </svg>
+            <span class="text-[11px] font-medium text-sublabel uppercase tracking-wider">AI Reasoning</span>
+          </div>
+          <p id="reasoningText" class="text-[13px] leading-relaxed text-label/90">
+            Calm — no pending items
+          </p>
+        </div>
+      </div>
+
+      <!-- ======== RIGHT COLUMN: Controls + Log ======== -->
+      <div class="flex-1 flex flex-col gap-3 min-h-0 min-w-0">
+
+        <!-- Header -->
+        <div class="flex items-end justify-between">
+          <div>
+            <h1 class="font-display text-2xl font-bold text-label tracking-tight">Halo Simulator</h1>
+            <p class="text-[13px] text-sublabel mt-0.5">Ambient notification intelligence — context-aware fusion engine</p>
+          </div>
+          <div class="flex items-center gap-2 text-[11px] text-muted">
+            <span class="status-dot w-1.5 h-1.5 rounded-full bg-emerald-400 inline-block"></span>
+            System Active
+          </div>
+        </div>
+
+        <!-- Controls panel -->
+        <div class="glass rounded-2xl p-5 flex flex-col gap-4">
+
+          <!-- Simulate Notifications -->
+          <div>
+            <h2 class="text-[11px] font-semibold text-sublabel uppercase tracking-wider mb-3">Simulate Notifications</h2>
+            <div class="flex gap-2">
+              <button id="btnLow" class="btn btn-low flex-1" onclick="onLowPriority()">
+                ↓ Low Priority
+              </button>
+              <button id="btnHigh" class="btn btn-high flex-1" onclick="onHighPriority()">
+                ⚡ High Priority
+              </button>
+            </div>
+            <div class="flex items-center justify-between mt-2.5">
+              <span id="pendingCount" class="text-[12px] text-muted">No pending notifications</span>
+              <button id="btnClear" class="text-[12px] text-sublabel hover:text-label transition-colors cursor-pointer bg-transparent border-none p-0 font-sans opacity-0 pointer-events-none"
+                      onclick="onClearAll()">
+                Clear all
+              </button>
+            </div>
+          </div>
+
+          <!-- Divider -->
+          <div class="h-px bg-white/[0.04]"></div>
+
+          <!-- Device Context -->
+          <div>
+            <h2 class="text-[11px] font-semibold text-sublabel uppercase tracking-wider mb-3">Device Context</h2>
+            <div class="flex flex-col gap-3">
+              <!-- Meeting toggle -->
+              <div class="flex items-center justify-between">
+                <label for="meetingToggle" class="text-[13px] text-label/80 cursor-pointer select-none">In a meeting</label>
+                <button id="meetingToggle" class="toggle-switch" role="switch" aria-checked="false" onclick="onMeetingToggle(this)">
+                  <span class="toggle-thumb"></span>
+                </button>
+              </div>
+              <!-- Focus toggle -->
+              <div class="flex items-center justify-between">
+                <label for="focusToggle" class="text-[13px] text-label/80 cursor-pointer select-none">Focus mode</label>
+                <button id="focusToggle" class="toggle-switch" role="switch" aria-checked="false" onclick="onFocusToggle(this)">
+                  <span class="toggle-thumb"></span>
+                </button>
+              </div>
+              <!-- Noise slider -->
+              <div>
+                <div class="flex items-center justify-between mb-1.5">
+                  <span class="text-[13px] text-label/80">Ambient noise level</span>
+                  <span id="noiseValue" class="text-[12px] text-sublabel font-medium">Low</span>
+                </div>
+                <input type="range" id="noiseSlider" min="0" max="2" step="1" value="0" oninput="onNoiseChange(this)">
+                <div class="flex justify-between text-[10px] text-muted mt-1 px-0.5">
+                  <span>Low</span><span>Medium</span><span>High</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Divider -->
+          <div class="h-px bg-white/[0.04]"></div>
+
+          <!-- Live Classification -->
+          <div>
+            <h2 class="text-[11px] font-semibold text-sublabel uppercase tracking-wider mb-2.5">Live Classification</h2>
+            <div class="flex gap-2">
+              <input type="text" id="messageInput" placeholder="Type a message to classify..." maxlength="200"
+                     onkeydown="if(event.key==='Enter')onSendMessage()">
+              <button id="btnSend" class="btn btn-send flex-shrink-0" onclick="onSendMessage()">
+                Send
+              </button>
+            </div>
+            <p id="classifyStatus" class="text-[11px] text-muted mt-1.5 h-4"></p>
+          </div>
+        </div>
+
+        <!-- Event Log -->
+        <div class="glass rounded-2xl p-4 flex-1 flex flex-col min-h-0">
+          <h2 class="text-[11px] font-semibold text-sublabel uppercase tracking-wider mb-2.5 flex-shrink-0">Event Timeline</h2>
+          <div id="logEntries" class="flex-1 overflow-y-auto flex flex-col gap-1 min-h-0">
+            <!-- Log entries inserted here by JS -->
+          </div>
+        </div>
+      </div>
+    </main>
+
+    <!-- ---- Bottom: Disclaimer ---- -->
+    <footer class="text-center py-1.5 flex-shrink-0">
+      <p class="text-[10px] text-muted/60 leading-relaxed">
+        Software simulation of the Halo ring output — production version drives the physical Monster Halo LED ring on iQOO devices, classifying notifications with a small on-device model instead of a cloud API.
+      </p>
+    </footer>
+  </div>
+
+  <!-- ======================== JAVASCRIPT ======================== -->
+  <script>
+    // ================================================================
+    //  CONFIGURATION
+    // ================================================================
+
+    // ⚠️  Paste your Gemini API key here for local demo use only.
+    //     Do NOT commit this file to a public repository with a real key.
+    const GEMINI_API_KEY = "PASTE_KEY_HERE";
+
+    const GEMINI_PRIMARY   = "gemini-2.5-flash-lite-preview-06-17";
+    const GEMINI_FALLBACK  = "gemini-2.0-flash";
+    const API_BASE         = "https://generativelanguage.googleapis.com/v1beta/models";
+    const TIMEOUT_MS       = 4000;
+    const MAX_LOG          = 10;
+    const BUILDING_THRESH  = 3;
+
+    const SYSTEM_INSTRUCTION = `You are a notification priority classifier for a phone's ambient notification system.
+Given a message, classify it as "high" or "low" priority based on genuine semantic urgency.
+High-priority: emergencies, someone needing help, time-sensitive requests, safety concerns, VIP contacts reaching out urgently.
+Low-priority: casual updates, marketing, social media, informational, routine.
+Context is critical: "I drove past the hospital" is low-priority; "I'm at the hospital, come now" is high-priority.
+Return ONLY valid JSON with exactly two keys: "priority" (string, either "high" or "low") and "reason" (string, one short plain-language sentence explaining why).`;
+
+    const HAS_API_KEY = GEMINI_API_KEY && GEMINI_API_KEY !== "PASTE_KEY_HERE";
+
+    // ================================================================
+    //  APPLICATION STATE
+    // ================================================================
+
+    const state = {
+      notifications: [],   // { id, priority, text, reason, ts }
+      inMeeting:  false,
+      focusMode:  false,
+      noiseLevel: "low",   // "low" | "medium" | "high"
+      ringState:  "calm",  // "calm" | "building" | "urgent" | "critical"
+    };
+
+    let nextId = 1;
+
+    // ================================================================
+    //  SIMULATED NOTIFICATION DATA
+    // ================================================================
+
+    const LOW_SIMS = [
+      { app: "Instagram",  desc: "New follower notification" },
+      { app: "Gmail",      desc: "Promotional email from Amazon" },
+      { app: "YouTube",    desc: "New video from subscribed channel" },
+      { app: "Twitter/X",  desc: "Someone liked your post" },
+      { app: "LinkedIn",   desc: "Job recommendation match" },
+      { app: "News",       desc: "Daily briefing available" },
+      { app: "Weather",    desc: "Rain expected tomorrow" },
+      { app: "Reddit",     desc: "Trending in r/technology" },
+      { app: "Spotify",    desc: "New release from favorite artist" },
+      { app: "Duolingo",   desc: "Don't forget your daily lesson!" },
+    ];
+
+    const HIGH_SIMS = [
+      { app: "Messages",  desc: "VIP sender (Mom): \"Where are you?\"",              reason: "Recognized VIP sender (Mom)" },
+      { app: "WhatsApp",  desc: "Starred contact (Boss): \"Call me ASAP\"",           reason: "Urgent keyword + starred contact" },
+      { app: "Phone",     desc: "Missed call from starred contact (3rd attempt)",     reason: "Repeated call attempts from VIP" },
+      { app: "SMS",       desc: "\"Emergency meeting in 5 min\"",                     reason: "Urgent keyword: emergency" },
+      { app: "Messages",  desc: "VIP: \"I'm at the hospital, come now\"",             reason: "Semantic urgency: hospital + imperative" },
+      { app: "Slack",     desc: "DM from CTO: \"@you production is down\"",           reason: "VIP sender + critical context" },
+      { app: "WhatsApp",  desc: "Family group: \"Dad had an accident\"",              reason: "Family + accident context detected" },
+      { app: "Phone",     desc: "Incoming call from ICE contact",                     reason: "ICE (emergency) contact calling" },
+    ];
+
+    // ================================================================
+    //  RING STATE CONFIGURATIONS
+    // ================================================================
+
+    const RING_CFG = {
+      calm: {
+        color:   "#4a9eff",
+        label:   "CALM",
+        shadow:  "0 0 8px 2px rgba(74,158,255,1), 0 0 20px 6px rgba(74,158,255,0.8), 0 0 45px 12px rgba(74,158,255,0.45), 0 0 80px 24px rgba(74,158,255,0.2), 0 0 130px 45px rgba(74,158,255,0.08)",
+        innerBorder: "rgba(74,158,255,0.15)",
+        surfaceGlow: "radial-gradient(circle, rgba(74,158,255,0.1) 0%, transparent 60%)",
+        bgGlow:  "#4a9eff",
+      },
+      building: {
+        color:   "#ffb340",
+        label:   "BUILDING",
+        shadow:  "0 0 8px 2px rgba(255,179,64,1), 0 0 20px 6px rgba(255,179,64,0.8), 0 0 45px 12px rgba(255,179,64,0.45), 0 0 80px 24px rgba(255,179,64,0.2), 0 0 130px 45px rgba(255,179,64,0.08)",
+        innerBorder: "rgba(255,179,64,0.15)",
+        surfaceGlow: "radial-gradient(circle, rgba(255,179,64,0.1) 0%, transparent 60%)",
+        bgGlow:  "#ffb340",
+      },
+      urgent: {
+        color:   "#ffb340",
+        label:   "URGENT",
+        shadow:  "0 0 10px 3px rgba(255,179,64,1), 0 0 24px 8px rgba(255,179,64,0.85), 0 0 50px 15px rgba(255,179,64,0.5), 0 0 85px 28px rgba(255,179,64,0.22), 0 0 140px 50px rgba(255,179,64,0.1)",
+        innerBorder: "rgba(255,179,64,0.22)",
+        surfaceGlow: "radial-gradient(circle, rgba(255,179,64,0.14) 0%, transparent 60%)",
+        bgGlow:  "#ffb340",
+      },
+      critical: {
+        color:   "#ff4757",
+        label:   "CRITICAL",
+        shadow:  "0 0 12px 4px rgba(255,71,87,1), 0 0 28px 10px rgba(255,71,87,0.9), 0 0 55px 18px rgba(255,71,87,0.5), 0 0 90px 32px rgba(255,71,87,0.25), 0 0 150px 55px rgba(255,71,87,0.1)",
+        innerBorder: "rgba(255,71,87,0.28)",
+        surfaceGlow: "radial-gradient(circle, rgba(255,71,87,0.16) 0%, transparent 60%)",
+        bgGlow:  "#ff4757",
+      },
+    };
+
+    // ================================================================
+    //  DOM REFERENCES (populated on init)
+    // ================================================================
+
+    const el = {};
+
+    // ================================================================
+    //  FUSION LOGIC ENGINE
+    // ================================================================
+
+    function computeRingState() {
+      const highs = state.notifications.filter(n => n.priority === "high");
+      const lows  = state.notifications.filter(n => n.priority === "low");
+
+      // CRITICAL: high-priority + in meeting
+      if (highs.length > 0 && state.inMeeting) {
+        return "critical";
+      }
+
+      // URGENT: high-priority, not in meeting
+      if (highs.length > 0) {
+        // Focus mode does NOT suppress high-priority
+        return "urgent";
+      }
+
+      // BUILDING: 3+ low-priority accumulated
+      if (lows.length >= BUILDING_THRESH) {
+        // Focus mode: still shows building but never escalates further (already handled above)
+        // High noise: bias toward suppressing building
+        if (state.noiseLevel === "high") {
+          return lows.length >= 5 ? "building" : "calm";
+        }
+        return "building";
+      }
+
+      return "calm";
+    }
+
+    function generateReasoning(ringState) {
+      const highs = state.notifications.filter(n => n.priority === "high");
+      const lows  = state.notifications.filter(n => n.priority === "low");
+      const total = state.notifications.length;
+
+      switch (ringState) {
+        case "critical": {
+          const lastHigh = highs[highs.length - 1];
+          const reason = lastHigh?.reason ? ` (${lastHigh.reason})` : "";
+          return `Escalated to red — high-priority notification arrived while calendar shows busy${reason}`;
+        }
+        case "urgent": {
+          const lastHigh = highs[highs.length - 1];
+          const reason = lastHigh?.reason ? ` — ${lastHigh.reason}` : "";
+          return `Urgent — high-priority notification pending${reason}`;
+        }
+        case "building": {
+          let extra = "";
+          if (state.focusMode) extra = "; focus mode active, suppressing further escalation";
+          if (state.noiseLevel === "high") extra += "; high noise environment noted";
+          return `Building — ${lows.length} low-priority notifications accumulated${extra}`;
+        }
+        case "calm": {
+          if (total === 0) return "Calm — no pending items";
+          if (lows.length > 0 && state.noiseLevel === "high") {
+            return `Calm — ${lows.length} low-priority item${lows.length > 1 ? "s" : ""} suppressed (high noise environment)`;
+          }
+          if (lows.length > 0) {
+            return `Calm — ${lows.length} low-priority item${lows.length > 1 ? "s" : ""}, no action required`;
+          }
+          return "Calm — no pending items";
+        }
+      }
+    }
+
+    // ================================================================
+    //  RING ANIMATION ENGINE (GSAP)
+    // ================================================================
+
+    let activePulse = null;
+
+    function transitionRing(newState) {
+      if (state.ringState === newState) return;
+
+      const prevState = state.ringState;
+      state.ringState = newState;
+      const cfg = RING_CFG[newState];
+
+      // Kill current pulse
+      if (activePulse) {
+        activePulse.kill();
+        activePulse = null;
+      }
+
+      // Smooth color/glow transition
+      gsap.to(el.ring, {
+        duration: 0.5,
+        borderColor: cfg.color,
+        boxShadow: cfg.shadow,
+        ease: "power2.out",
+      });
+
+      gsap.to(el.innerRing, {
+        duration: 0.5,
+        borderColor: cfg.innerBorder,
+        ease: "power2.out",
+      });
+
+      // Update state label
+      el.stateLabel.textContent = cfg.label;
+      gsap.to(el.stateLabel, { duration: 0.4, color: cfg.color, ease: "power2.out" });
+
+      // Update surface glow
+      el.surfaceGlow.style.background = cfg.surfaceGlow;
+
+      // Update background glow
+      gsap.to(el.bgGlow, { duration: 1, backgroundColor: cfg.bgGlow, ease: "power2.out" });
+
+      // Update badge color
+      if (state.notifications.length > 0) {
+        el.badge.style.background = cfg.color.replace(")", ",0.2)").replace("rgb", "rgba").replace("#", "");
+        // Simpler: set via hex with opacity
+        el.badge.style.background = hexToRgba(cfg.color, 0.2);
+        el.badge.style.color = cfg.color;
+      }
+
+      // Start new pulse (delayed slightly to let color transition begin)
+      gsap.delayedCall(0.15, () => {
+        activePulse = createPulse(newState);
+      });
+    }
+
+    function createPulse(ringState) {
+      const ring = el.ring;
+
+      switch (ringState) {
+        case "calm": {
+          // 3s full cycle: slow, gentle breathing
+          const tween = gsap.to(ring, {
+            scale: 1.06,
+            opacity: 0.72,
+            duration: 1.5,
+            yoyo: true,
+            repeat: -1,
+            ease: "sine.inOut",
+          });
+          return tween;
+        }
+
+        case "building": {
+          // 1.5s full cycle: steady breathing
+          const tween = gsap.to(ring, {
+            scale: 1.08,
+            opacity: 0.65,
+            duration: 0.75,
+            yoyo: true,
+            repeat: -1,
+            ease: "sine.inOut",
+          });
+          return tween;
+        }
+
+        case "urgent": {
+          // 0.8s full cycle: fast anxious pulse
+          const tween = gsap.to(ring, {
+            scale: 1.12,
+            opacity: 0.55,
+            duration: 0.4,
+            yoyo: true,
+            repeat: -1,
+            ease: "power2.inOut",
+          });
+          return tween;
+        }
+
+        case "critical": {
+          // Sharp triple-burst: 0.3s burst + 0.5s pause
+          const tl = gsap.timeline({ repeat: -1, repeatDelay: 0.5 });
+          for (let i = 0; i < 3; i++) {
+            tl.to(ring, { scale: 1.22, opacity: 1, duration: 0.05, ease: "power4.out" })
+              .to(ring, { scale: 1.0,  opacity: 0.4, duration: 0.05, ease: "power4.in" });
+          }
+          return tl;
+        }
+      }
+    }
+
+    function hexToRgba(hex, alpha) {
+      const r = parseInt(hex.slice(1, 3), 16);
+      const g = parseInt(hex.slice(3, 5), 16);
+      const b = parseInt(hex.slice(5, 7), 16);
+      return `rgba(${r},${g},${b},${alpha})`;
+    }
+
+    // ================================================================
+    //  GEMINI API INTEGRATION
+    // ================================================================
+
+    async function classifyWithAPI(message) {
+      if (!HAS_API_KEY) return localClassify(message);
+
+      // Try primary model
+      try {
+        return await callGemini(message, GEMINI_PRIMARY);
+      } catch (_) {
+        // Try fallback model
+        try {
+          return await callGemini(message, GEMINI_FALLBACK);
+        } catch (__) {
+          return localClassify(message);
+        }
+      }
+    }
+
+    async function callGemini(message, model) {
+      const controller = new AbortController();
+      const timer = setTimeout(() => controller.abort(), TIMEOUT_MS);
+
+      try {
+        const url = `${API_BASE}/${model}:generateContent?key=${GEMINI_API_KEY}`;
+        const res = await fetch(url, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          signal: controller.signal,
+          body: JSON.stringify({
+            systemInstruction: { parts: [{ text: SYSTEM_INSTRUCTION }] },
+            contents: [{ parts: [{ text: `Classify this notification message:\n"${message}"` }] }],
+            generationConfig: {
+              temperature: 0.1,
+              maxOutputTokens: 150,
+              responseMimeType: "application/json",
+              responseSchema: {
+                type: "OBJECT",
+                properties: {
+                  priority: { type: "STRING", enum: ["high", "low"] },
+                  reason:   { type: "STRING" },
+                },
+                required: ["priority", "reason"],
+              },
+            },
+          }),
+        });
+
+        clearTimeout(timer);
+
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const data = await res.json();
+        const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
+        if (!text) throw new Error("Empty response");
+
+        const result = JSON.parse(text);
+        if (!result.priority || !["high", "low"].includes(result.priority)) {
+          throw new Error("Bad format");
+        }
+
+        return { priority: result.priority, reason: result.reason || "Classified by AI" };
+      } catch (err) {
+        clearTimeout(timer);
+        throw err;
+      }
+    }
+
+    // ================================================================
+    //  LOCAL FALLBACK CLASSIFIER
+    // ================================================================
+
+    function localClassify(message) {
+      const lower = message.toLowerCase().trim();
+
+      // Semantic pattern groups (not single keywords)
+      const urgentPatterns = [
+        /\b(emergency|emergencies)\b/,
+        /\b(urgent|urgently)\b/,
+        /\b(asap|a\.s\.a\.p\.)\b/,
+        /\b(help me|need help|needs help|please help)\b/,
+        /\b(come now|come immediately|come quick|come fast)\b/,
+        /\b(right now|right away|immediately)\b/,
+        /\b(call me|pick up|answer the phone|answer your phone)\b/,
+        /\b(where are you|where r u|whr are you)\b/,
+        /\b(accident|injured|hurt|bleeding|unconscious)\b/,
+        /\b(hospital|ambulance|paramedic)\b.*\b(come|go|rush|need|help|here|now)\b/,
+        /\b(come|go|rush|need|help|here|now)\b.*\b(hospital|ambulance|paramedic)\b/,
+        /\b(i'?m at the hospital|admitted to|in the er|in the icu)\b/,
+        /\b(fire|911|112|police)\b/,
+        /\b(production.*(down|broke|crash|fail|issue))/,
+        /\b(server.*(down|crash|fail|unresponsive))/,
+        /\b(something (happened|wrong|bad))\b/,
+        /\b(died|dying|passed away|critical condition)\b/,
+      ];
+
+      const isHigh = urgentPatterns.some(p => p.test(lower));
+
+      return {
+        priority: isHigh ? "high" : "low",
+        reason: isHigh
+          ? "Local classifier: urgent language patterns detected"
+          : "Local classifier: no urgent indicators found",
+      };
+    }
+
+    // ================================================================
+    //  EVENT LOG
+    // ================================================================
+
+    function addLog(text, type) {
+      const now = new Date();
+      const ts = now.toLocaleTimeString("en-US", {
+        hour: "2-digit", minute: "2-digit", second: "2-digit", hour12: false,
+      });
+
+      // Create entry element
+      const entry = document.createElement("div");
+      entry.className = "flex items-start gap-2.5 py-1.5 px-1";
+      entry.style.opacity = "0";
+
+      const dotColor = type === "high" ? "bg-danger" :
+                       type === "low"  ? "bg-calm" :
+                       "bg-sublabel";
+
+      entry.innerHTML = `
+        <span class="log-dot ${dotColor} mt-[5px]"></span>
+        <span class="text-[11px] text-muted font-mono flex-shrink-0">${ts}</span>
+        <span class="text-[12px] text-sublabel leading-snug">${escapeHtml(text)}</span>
+      `;
+
+      // Insert at top
+      el.logContainer.prepend(entry);
+
+      // Animate in
+      gsap.fromTo(entry,
+        { opacity: 0, y: -12, scale: 0.97 },
+        { opacity: 1, y: 0, scale: 1, duration: 0.35, ease: "power2.out" }
+      );
+
+      // Remove excess
+      while (el.logContainer.children.length > MAX_LOG) {
+        const last = el.logContainer.lastChild;
+        gsap.to(last, {
+          opacity: 0, duration: 0.2,
+          onComplete: () => last.remove(),
+        });
+      }
+    }
+
+    function escapeHtml(str) {
+      const div = document.createElement("div");
+      div.textContent = str;
+      return div.innerHTML;
+    }
+
+    // ================================================================
+    //  UI UPDATE FUNCTIONS
+    // ================================================================
+
+    function updateUI() {
+      const newState = computeRingState();
+      const reasoning = generateReasoning(newState);
+
+      // Update reasoning text
+      el.reasoning.textContent = reasoning;
+
+      // Transition ring if state changed
+      if (newState !== state.ringState) {
+        transitionRing(newState);
+      }
+
+      // Update pending counter
+      updatePendingCounter();
+    }
+
+    function updatePendingCounter() {
+      const total = state.notifications.length;
+      const highs = state.notifications.filter(n => n.priority === "high").length;
+      const lows  = state.notifications.filter(n => n.priority === "low").length;
+
+      if (total === 0) {
+        el.pendingCount.textContent = "No pending notifications";
+        el.badge.style.opacity = "0";
+        el.clearBtn.style.opacity = "0";
+        el.clearBtn.style.pointerEvents = "none";
+      } else {
+        const parts = [];
+        if (highs > 0) parts.push(`${highs} high`);
+        if (lows > 0)  parts.push(`${lows} low`);
+        el.pendingCount.textContent = `${total} pending — ${parts.join(", ")}`;
+        el.badge.textContent = total;
+        el.badge.style.opacity = "1";
+        el.clearBtn.style.opacity = "1";
+        el.clearBtn.style.pointerEvents = "auto";
+      }
+    }
+
+    // ================================================================
+    //  EVENT HANDLERS
+    // ================================================================
+
+    function onLowPriority() {
+      const sim = LOW_SIMS[Math.floor(Math.random() * LOW_SIMS.length)];
+      const notif = {
+        id: nextId++,
+        priority: "low",
+        text: sim.desc,
+        reason: `App category: ${sim.app} (low-priority)`,
+        ts: Date.now(),
+      };
+
+      state.notifications.push(notif);
+      addLog(`${sim.app} — ${sim.desc}`, "low");
+      updateUI();
+
+      // Button click feedback
+      flashButton(el.btnLow, "rgba(74,158,255,0.25)");
+    }
+
+    function onHighPriority() {
+      const sim = HIGH_SIMS[Math.floor(Math.random() * HIGH_SIMS.length)];
+      const notif = {
+        id: nextId++,
+        priority: "high",
+        text: sim.desc,
+        reason: sim.reason,
+        ts: Date.now(),
+      };
+
+      state.notifications.push(notif);
+      addLog(`⚡ ${sim.app} — ${sim.desc}`, "high");
+      updateUI();
+
+      flashButton(el.btnHigh, "rgba(255,71,87,0.25)");
+    }
+
+    async function onSendMessage() {
+      const msg = el.messageInput.value.trim();
+      if (!msg) return;
+
+      // Disable input during classification
+      el.messageInput.disabled = true;
+      el.btnSend.disabled = true;
+      el.classifyStatus.textContent = HAS_API_KEY ? "Classifying with Gemini..." : "Classifying locally...";
+
+      try {
+        const result = await classifyWithAPI(msg);
+
+        // Add as notification
+        const notif = {
+          id: nextId++,
+          priority: result.priority,
+          text: msg,
+          reason: result.reason,
+          ts: Date.now(),
+        };
+
+        state.notifications.push(notif);
+
+        const icon = result.priority === "high" ? "⚡" : "↓";
+        const source = HAS_API_KEY ? "AI" : "Local";
+        addLog(`${icon} [${source}] "${msg}" → ${result.priority}-priority`, result.priority);
+
+        el.classifyStatus.textContent = `→ ${result.reason}`;
+        el.messageInput.value = "";
+        updateUI();
+
+        // Fade status after 4s
+        setTimeout(() => {
+          if (el.classifyStatus.textContent.startsWith("→")) {
+            gsap.to(el.classifyStatus, {
+              opacity: 0, duration: 0.5,
+              onComplete: () => {
+                el.classifyStatus.textContent = "";
+                gsap.set(el.classifyStatus, { opacity: 1 });
+              },
+            });
+          }
+        }, 4000);
+
+      } catch (err) {
+        el.classifyStatus.textContent = "";
+      }
+
+      el.messageInput.disabled = false;
+      el.btnSend.disabled = false;
+      el.messageInput.focus();
+    }
+
+    function onMeetingToggle(btn) {
+      const isActive = btn.getAttribute("aria-checked") === "true";
+      btn.setAttribute("aria-checked", String(!isActive));
+      state.inMeeting = !isActive;
+
+      addLog(state.inMeeting ? "📅 Meeting started" : "📅 Meeting ended", "system");
+      updateUI();
+    }
+
+    function onFocusToggle(btn) {
+      const isActive = btn.getAttribute("aria-checked") === "true";
+      btn.setAttribute("aria-checked", String(!isActive));
+      state.focusMode = !isActive;
+
+      addLog(state.focusMode ? "🎯 Focus mode enabled" : "🎯 Focus mode disabled", "system");
+      updateUI();
+    }
+
+    function onNoiseChange(slider) {
+      const labels = ["low", "medium", "high"];
+      const display = ["Low", "Medium", "High"];
+      state.noiseLevel = labels[slider.value];
+      el.noiseValue.textContent = display[slider.value];
+
+      addLog(`🔊 Noise level → ${display[slider.value]}`, "system");
+      updateUI();
+    }
+
+    function onClearAll() {
+      state.notifications = [];
+      addLog("🔄 All notifications cleared", "system");
+      updateUI();
+
+      // Reset ring to default scale/opacity smoothly
+      gsap.to(el.ring, { scale: 1, opacity: 1, duration: 0.3, ease: "power2.out" });
+    }
+
+    function flashButton(btn, color) {
+      gsap.fromTo(btn,
+        { boxShadow: `0 0 20px ${color}` },
+        { boxShadow: "0 0 0px transparent", duration: 0.5, ease: "power2.out" }
+      );
+    }
+
+    // ================================================================
+    //  INITIALIZATION
+    // ================================================================
+
+    function init() {
+      // Cache DOM refs
+      el.ring          = document.getElementById("haloRing");
+      el.innerRing     = document.getElementById("innerRing");
+      el.stateLabel    = document.getElementById("ringStateLabel");
+      el.surfaceGlow   = document.getElementById("surfaceGlow");
+      el.bgGlow        = document.getElementById("bgGlow");
+      el.badge         = document.getElementById("notifBadge");
+      el.reasoning     = document.getElementById("reasoningText");
+      el.pendingCount  = document.getElementById("pendingCount");
+      el.clearBtn      = document.getElementById("btnClear");
+      el.logContainer  = document.getElementById("logEntries");
+      el.messageInput  = document.getElementById("messageInput");
+      el.btnSend       = document.getElementById("btnSend");
+      el.btnLow        = document.getElementById("btnLow");
+      el.btnHigh       = document.getElementById("btnHigh");
+      el.noiseValue    = document.getElementById("noiseValue");
+      el.classifyStatus = document.getElementById("classifyStatus");
+
+      // Set initial ring animation
+      gsap.set(el.ring, { scale: 1, opacity: 1 });
+      activePulse = createPulse("calm");
+
+      // Page load animation
+      requestAnimationFrame(() => {
+        document.body.classList.add("loaded");
+
+        // Staggered entrance
+        const fadeEls = [
+          document.getElementById("phone"),
+          document.getElementById("reasoningPanel"),
+          ...document.querySelectorAll(".glass"),
+        ];
+        gsap.from(fadeEls, {
+          opacity: 0, y: 24, duration: 0.7,
+          stagger: 0.08, ease: "power2.out", delay: 0.15,
+        });
+      });
+
+      // Add initial log entry
+      addLog("System initialized — Halo ring active", "system");
+    }
+
+    document.addEventListener("DOMContentLoaded", init);
+  </script>
+</body>
+</html>
